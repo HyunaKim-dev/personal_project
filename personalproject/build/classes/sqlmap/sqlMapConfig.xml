@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration><!-- 환경설정 -->
+	<typeAliases>
+	<typeAlias type="member.dto.MemberDTO" alias="mdto"/>
+	<typeAlias type="cafe.dto.CafeDTO" alias="cdto"/>
+	<typeAlias type="reviewboard.dto.ReviewBoardDTO" alias="rbdto"/>
+	<typeAlias type="reviewboard.dto.ReviewBoardCommentDTO" alias="rbcdto"/>
+	</typeAliases>
+
+	<environments default="">
+	<environment id="">
+		<transactionManager type="JDBC"/>
+		<dataSource type="JNDI">
+			<property name="data_source" value="java:comp/env/oraDB"/><!-- Servers Projcet - context.xml - Resource 태그 name 속성 -->
+		</dataSource>
+	</environment>
+	</environments>
+<mappers>
+<mapper resource="/member/mapper/member.xml"/>
+<mapper resource="/cafe/mapper/cafe.xml"/>
+<mapper resource="/reviewboard/mapper/reviewboard.xml"/>
+<mapper resource="/reviewboard/mapper/rbcomment.xml"/>
+</mappers>
+
+</configuration>

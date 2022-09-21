@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cafe">
+<select id="getnewCafe" resultType="cdto">
+	select * from cafe 
+	where cafe_num=(select max(cafe_num) from cafe)
+</select>
+
+<select id="cafeCount" resultType="int">
+	select count(*) from cafe
+</select>
+
+<select id="cafeList" resultType="cdto">
+	select cafe_name, menu, price, open_date, tel, address, parking, opening_hours, 
+	instagram, website, img_src, review_main, review_sub, addr_map, short_review, 
+	stars_count, stars_tot, stars_tot, round(stars_avg) as stars_avg, cafe_num, cafe_name_sub
+	from (
+		select C.*, rownum as rn 
+		from (
+			select *
+			from cafe order by cafe_name) C
+	)
+	where rn between #{start} and #{end}
+</select>
+
+<select id="searchCount" resultType="int">
+	select count(*) from cafe
+	where 
+	<choose>
+	<when test='searchOption.equals("menu") or searchOption.equals("cafe_name")'>
+	${searchOption} like #{searchKeyword}
+	</when>
+	 <otherwise>
+	  cafe_name like #{searchKeyword} or menu like #{searchKeyword}
+	 </otherwise>
+	</choose>
+</select>
+
+<select id="searchList" resultType="cdto">
+	select cafe_name, menu, price, open_date, tel, address, parking, opening_hours, 
+	instagram, website, img_src, review_main, review_sub, addr_map, short_review, 
+	stars_count, stars_tot, stars_tot, round(stars_avg) as stars_avg, cafe_num, cafe_name_sub
+	from (
+		select C.*, rownum as rn 
+		from (
+			select *
+			from cafe 
+			<if test="searchOption != null">
+			where ${searchOption} like #{searchKeyword}
+			</if>
+			<if test="searchOption == null">
+			where cafe_name like #{searchKeyword} or menu like #{searchKeyword}
+			</if>
+			order by ${orderOption} 
+			<if test="orderOption != 'cafe_name'.toString()">
+			desc
+			</if>
+			) C
+	)
+	where rn between #{start} and #{end}
+</select>
+
+<select id="getCafeDetail" resultType="cdto">
+	select cafe_name, cafe_name_sub, menu, price, open_date, tel, address, parking, opening_hours, 
+	instagram, website, img_src, review_main, review_sub, addr_map, short_review, 
+	stars_count, stars_tot, stars_tot, round(stars_avg) as stars_avg, cafe_num
+	from cafe
+	where cafe_num=#{cafe_num}
+</select>
+
+<update id="updateStar">
+	BEGIN
+	update cafe set stars_count=stars_count+1, stars_tot=stars_tot+#{star}
+	where cafe_num=#{cafe_num};
+	
+	update cafe set
+	stars_avg=stars_tot/stars_count
+	where cafe_num=#{cafe_num};
+	END;
+</update>
+</mapper>

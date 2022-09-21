@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="rbcomment">
+<select id="getCommentList" resultType="rbcdto">
+	select
+		 comment_num, reviewboard_num, writer, content,
+		 reg_date, group_num, re_step, re_level, show_op
+	from 
+		reviewboard_comment
+	where
+		(reviewboard_num=#{reviewboard_num}) and show_op='y'
+	order by re_step desc, re_level asc
+</select>
+
+<insert id="insertComment">
+	insert into reviewboard_comment
+		(comment_num, reviewboard_num, writer, 
+		content, group_num, re_step, re_level)
+	values
+		((select nvl(max(comment_num)+1, 1) from reviewboard_comment),
+		#{reviewboard_num}, #{writer}, #{content},
+		(select nvl(max(comment_num)+1, 1) from reviewboard_comment),
+		1, 1)
+</insert>
+
+<update id="updateStep" parameterType="map">
+	update reviewboard_comment set
+	re_step=re_step+1
+	where group_num=#{group_num} and re_step >= #{re_step}
+</update>
+
+<update id="deleteComment" parameterType="int">
+	update reviewboard_comment
+	set show_op='n'
+	where comment_num=#{comment_num}
+</update>
+</mapper>

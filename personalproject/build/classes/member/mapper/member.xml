@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="member">
+	<select id="loginCheck" resultType="String">
+		select name from member
+		where
+		userid=#{userid} and passwd=#{passwd}
+	</select>
+
+	<select id="joinIdCheck" resultType="String">
+		select name from member
+		where userid=#{userid}
+	</select>
+
+	<insert id="join" parameterType="mdto">
+		insert into member (userid,
+		passwd, name, email, hp, address, birthday)
+		values (#{userid},
+		#{passwd}, #{name}, #{email}, #{hp}, #{address},
+		to_date(#{birthday},
+		'yyyy-mm-dd'))
+	</insert>
+
+	<select id="getMemberDetail" parameterType="String"
+		resultType="mdto">
+		select userid, passwd, name, email, hp, address, birthday
+		from member
+		where userid=#{userid}
+	</select>
+
+	<update id="updateMember">
+		update member set
+		passwd=#{passwd}, name=#{name},
+		email=#{email},
+		hp=#{hp}, address=#{address}, birthday=#{birthday}
+		where userid=#{userid}
+	</update>
+
+	<delete id="deleteMember">
+		delete from member
+		where userid=#{userid}
+	</delete>
+
+	<select id="adminIdCheck" resultType="boolean">
+		select count(*)
+		from
+		adminmember
+		where adminid=#{userid}
+	</select>
+
+	<select id="adminKeyCheck" resultType="boolean">
+		select count(*)
+		from
+		adminmember
+		where adminid=#{adminid} and adminkey=#{adminkey}
+	</select>
+
+	<select id="memberCount" resultType="int">
+		select count(*) from member
+	</select>
+
+	<select id="getMemberList" resultType="mdto">
+		select rn, userid, name,
+		email, hp, address, birthday, join_date
+		from (
+		select M.*, rownum as rn
+		from (
+		select userid, name, email, hp, address, birthday, join_date
+		from
+		member order by join_date) M
+		)
+		where rn between #{start} and #{end}
+	</select>
+
+	<delete id="adminDelete">
+		delete from member
+		where
+		<foreach collection="list" item="list" separator="or"
+			index="index">
+			userid=#{list}
+		</foreach>
+	</delete>
+
+	<select id="searchList" resultType="mdto">
+		select rn, userid, name,
+		email, hp, address, birthday, join_date
+		from (
+		select M.*, rownum as rn
+		from (
+		select userid, name, email, hp, address, birthday, join_date
+		from
+		member where ${searchOption} like #{searchKeyword}
+		order by
+		join_date) M
+		)
+		where rn between #{start} and #{end}
+	</select>
+
+	<select id="searchListAll" resultType="mdto">
+		select rn, userid, name,
+		email, hp, address, birthday, join_date
+		from (
+		select M.*, rownum as rn
+		from (
+		select userid, name, email, hp, address, birthday, join_date
+		from member where userid like #{searchKeyword} or name like
+		#{searchKeyword}
+		order by join_date) M
+		)
+		where rn between #{start} and #{end}
+	</select>
+
+	<select id="searchCountAll" resultType="int">
+		select count(*) from
+		member
+		where userid like #{searchKeyword} or name like #{searchKeyword}
+	</select>
+
+	<select id="searchCount" resultType="int">
+		select count(*) from member
+		where ${searchOption} like #{searchKeyword}
+	</select>
+
+	<select id="getUserid" resultType="mdto">
+		select * from member
+		where email=#{email} and name=#{name}
+	</select>
+</mapper>

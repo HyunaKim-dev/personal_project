@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="reviewboard">
+	<select id="gethomeList" resultType="rbdto">
+		select * from (
+		select H.*,
+		rownum as rn
+		from (
+		select * from reviewboard
+		where stars>=1
+		order by
+		reg_date desc
+		) H
+		)
+		where rn between 1 and 10
+	</select>
+	<select id="countBoard" resultType="int">
+		select count(*) from reviewboard
+		where
+		<choose>
+			<when test='searchOption==null or searchOption.equals("all")'>
+				cafe_name like #{searchKeyword} or title like
+				#{searchKeyword} or content
+				like #{searchKeyword}
+			</when>
+			<otherwise>
+				${searchOption} like #{searchKeyword}
+			</otherwise>
+		</choose>
+	</select>
+
+	<select id="getBoardList" resultType="rbdto">
+		select *
+		from (
+		select B.*, rownum as rn
+		from (
+		select
+		num, writer, title,
+		content, stars, cafe_num,
+		cafe_name,
+		reg_date, read_count, good_count,
+		group_num, re_step, re_level,
+		filename, filesize, download, show_op,
+		ip,
+		(select count(*) from reviewboard_comment where
+		reviewboard_num=num)comment_count
+		from reviewboard
+		where
+		<choose>
+			<when test='searchOption=="all" and orderOption.equals("stars")'>
+				(cafe_name like #{searchKeyword} or title like
+				#{searchKeyword} or content
+				like #{searchKeyword})
+				and stars >=1
+			</when>
+			<when test='searchOption.equals("all")'>
+				cafe_name like #{searchKeyword} or title like
+				#{searchKeyword} or content
+				like #{searchKeyword}
+			</when>
+			<when test='searchOption!="all" and orderOption.equals("stars")'>
+				${searchOption} like #{searchKeyword} and stars >=1
+			</when>
+			<otherwise>
+				${searchOption} like #{searchKeyword}
+			</otherwise>
+		</choose>
+		order by
+		<choose>
+			<when test='orderOption.equals("reg_date")'>
+				group_num desc, re_step asc
+			</when>
+			<otherwise>
+				${orderOption} desc
+			</otherwise>
+		</choose>
+		) B
+		)
+		where rn between #{start} and #{end}
+	</select>
+
+	<insert id="insertReview" parameterType="rbdto">
+		insert into reviewboard
+		(num, writer, title, content, stars, cafe_num, cafe_name,
+		group_num,
+		re_step, re_level, filename, filesize, ip)
+		values
+		((select
+		nvl(max(num)+1, 1) from reviewboard),
+		#{writer}, #{title}, #{content},
+		#{stars}, #{cafe_num},
+		(select cafe_name from
+		cafe where
+		cafe_num=#{cafe_num}),
+		(select nvl(max(num)+1, 1) from
+		reviewboard), 1,
+		0,
+		#{filename}, #{filesize}, #{ip})
+	</insert>
+
+	<update id="updateReadCount" parameterType="int">
+		update reviewboard
+		set read_count=read_count+1
+		where num=#{num}
+	</update>
+
+	<select id="reviewDetail" parameterType="int" resultType="rbdto">
+		select
+		num, writer, title, content, stars, cafe_num,
+		cafe_name,
+		reg_date,
+		read_count, good_count, group_num, re_step, re_level,
+		filename,
+		filesize, download, show_op, ip,
+		(select count(*) from
+		reviewboard_comment
+		where reviewboard_num=num)comment_count
+		from
+		reviewboard where num=#{num}
+	</select>
+
+	<select id="getFileName" parameterType="int" resultType="String">
+		select
+		filename from reviewboard
+		where num=#{num}
+	</select>
+
+	<update id="updateDownload" parameterType="int">
+		update reviewboard
+		set
+		download=download+1
+		where num=#{num}
+	</update>
+
+	<update id="updateStars" parameterType="map">
+		BEGIN
+		update cafe set stars_count=stars_count+1,
+		stars_tot=stars_tot+#{stars}
+		where cafe_num=#{cafe_num};
+
+		update cafe set
+		stars_avg=stars_tot/stars_count
+		where cafe_num=#{cafe_num};
+
+		update cafe
+		set stars_count=stars_count-1, stars_tot=stars_tot-#{prev_stars}
+		where
+		cafe_num=#{prev_cafe_num};
+
+		<if test="prev_count != 1">
+			update cafe set
+			stars_avg=stars_tot/stars_count
+			where
+			cafe_num=#{prev_cafe_num};
+		</if>
+		END;
+	</update>
+
+	<update id="updateReview" parameterType="rbdto">
+		update reviewboard set
+		title=#{title}, content=#{content}, ip=#{ip},
+		stars=#{stars},
+		cafe_num=#{cafe_num}, filename=#{filename},
+		filesize=#{filesize},
+		download=#{download}
+		where num=#{num}
+	</update>
+
+	<update id="deleteReview" parameterType="int">
+		update reviewboard set
+		show_op='n'
+		where num=#{num}
+	</update>
+
+	<update id="deleteCommentAll" parameterType="int">
+		update
+		reviewboard_comment set show_op='n'
+		where reviewboard_num=#{num}
+	</update>
+
+	<update id="deleteStars" parameterType="map">
+		BEGIN
+		update cafe set
+		stars_count=stars_count-1,
+		stars_tot=stars_tot-#{stars}
+		where cafe_num=#{cafe_num};
+		<if test="prev_count != 1">
+			update cafe set
+			stars_avg=stars_tot/stars_count;
+		</if>
+		END;
+	</update>
+
+	<update id="updateStep" parameterType="map">
+		update reviewboard set
+		re_step=re_step+1
+		where group_num=#{group_num} and re_step >=
+		#{re_step}
+	</update>
+
+	<insert id="replyReview" parameterType="rbdto">
+		insert into reviewboard
+		(num, writer, title, content,
+		group_num, re_step, re_level, filename,
+		filesize, ip)
+		values
+		((select nvl(max(num)+1, 1) from reviewboard),
+		#{writer}, #{title}, #{content},
+		#{group_num}, #{re_step}, #{re_level},
+		#{filename}, #{filesize}, #{ip})
+	</insert>
+
+	<update id="updateGoodCount" parameterType="int">
+		update reviewboard
+		set good_count=good_count+1
+		where num=#{num}
+	</update>
+
+	<select id="countMyList" parameterType="map" resultType="int">
+		select count(*) from reviewboard
+		where
+		<choose>
+			<when test='searchOption==null or searchOption.equals("all")'>
+				cafe_name like #{searchKeyword} or title like
+				#{searchKeyword} or content
+				like
+				#{searchKeyword}
+			</when>
+			<otherwise>
+				${searchOption} like #{searchKeyword}
+			</otherwise>
+		</choose>
+		and writer=#{writer}
+	</select>
+
+	<select id="getMyList" parameterType="map" resultType="rbdto">
+		select *
+		from (
+		select B.*, rownum as rn
+		from (
+		select * from
+		(select
+		num,
+		writer, title, content, stars, cafe_num, cafe_name,
+		reg_date,
+		read_count, good_count, group_num, re_step, re_level,
+		filename,
+		filesize, download, show_op, ip,
+		(select count(*) from
+		reviewboard_comment where
+		reviewboard_num=num)comment_count
+		from
+		reviewboard
+		where cafe_name like #{searchKeyword} or title like
+		#{searchKeyword} or
+		content like #{searchKeyword})
+		where
+		<choose>
+			<when test='searchOption=="all" and orderOption.equals("stars")'>
+				stars >=1 and
+			</when>
+			<when test='searchOption!="all" and orderOption.equals("stars")'>
+				${searchOption} like #{searchKeyword} and stars >=1
+				and
+			</when>
+			<when
+				test='searchOption!="all" and orderOption.equals("read_count")'>
+				${searchOption} like #{searchKeyword} and
+			</when>
+		</choose>
+		writer=#{writer}
+		order by
+		<choose>
+			<when test='orderOption.equals("reg_date")'>
+				group_num desc, re_step asc
+			</when>
+			<otherwise>
+				${orderOption} desc
+			</otherwise>
+		</choose>
+		) B
+		)
+		where rn between #{start} and #{end}
+	</select>
+
+	<select id="numCheck" resultType="rbdto">
+		select * from reviewboard
+		where num = (select min(num) from reviewboard) or
+		num = (select max(num) from reviewboard)
+		order by num asc
+	</select>
+</mapper>
